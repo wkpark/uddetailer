@@ -498,6 +498,16 @@ function attachGalleryButtonListener(tabname) {
     });
 }
 
+function get_current_gallery() {
+    let tabs = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery');
+    for (let i = 0; i < tabs.length; i++) {
+        if (tabs[i].parentElement.offsetParent) {
+            return tabs[i];
+        }
+    }
+    return null;
+}
+
 function onGalleryUpdate() {
     if (Object.keys(generation_buttons).length < 2) {
         let button = gradioApp().getElementById('txt2img' + "_generation_info_button");
@@ -514,6 +524,24 @@ function onGalleryUpdate() {
     if (Object.keys(generation_buttons).length > 0 && generation_buttons.img2img && !enabled.img2img) {
         enabled.img2img = true;
         attachGalleryButtonListener("img2img");
+    }
+
+    // check canvas visibility
+    var id = selected_gallery_index();
+    if (id == -1) {
+        var lightbox = gradioApp().getElementById("lightboxModal");
+        var lightbox_wrap = lightbox.querySelector(".mudd_masks_wrapper");
+        // toggle mask visibility
+        if (lightbox_wrap) {
+            lightbox_wrap.style.top = "-2000px";
+        }
+
+        var gallery = get_current_gallery();
+        if (gallery) {
+            var wrap = gallery.querySelector(".mudd_masks_wrapper");
+            if (wrap)
+                wrap.style.top = "-2000px";
+        }
     }
 }
 
