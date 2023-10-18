@@ -474,53 +474,63 @@ function attachGalleryButtonListener(tabname) {
             }
         }
 
-        // attach mask button at the bottom of gallery
-        var buttons = gradioApp().querySelectorAll("#image_buttons_" + tabname + " .form button");
-        if (buttons[buttons.length - 1].id != "") {
-            var maskbtn = document.createElement("button");
-            maskbtn.className = buttons[buttons.length - 1].classList;
-            maskbtn.title = "Hide/Show masks";
-            maskbtn.innerHTML="\u{1f3ad}";
-            maskbtn.addEventListener('click', (e) => {
-                if (!opts.mudd_use_gallery_detection_preview)
-                    return;
-
-                let masks_a = gradioApp().querySelector("#mudd_masks_a_gallery_" + tabname + " textarea");
-                let masks_b = gradioApp().querySelector("#mudd_masks_b_gallery_" + tabname + " textarea");
-
-                // check masks_a, masks_b are available
-                if (masks_a.value == "" && masks_b.value == "") {
-                    let id = selected_gallery_index();
-                    let src = gradioApp().querySelector("#generation_info_" + tabname + " textarea").value;
-                    if (src) {
-                        let infotexts = JSON.parse(src).infotexts;
-                        if (infotexts[id]) {
-                            parse_generation_info(tabname, infotexts[id]);
-                        }
-                    }
-                }
-
-                var lightbox = gradioApp().getElementById("lightboxModal");
-                var lightbox_wrap = lightbox.querySelector(".mudd_masks_wrapper");
-                var gallery_id = tabname + "_gallery";
-                var wrap = gradioApp().querySelectorAll("#" + gallery_id + " .mudd_masks_wrapper")[0];
-
-                // toggle mask visibility
-                if (lightbox_wrap) {
-                    if (lightbox_wrap?.style.top == "0px") {
-                        lightbox_wrap.style.top = "-2000px";
-                        if (wrap)
-                            wrap.style.top = "-2000px";
-                    } else if (lightbox_wrap) {
-                        lightbox_wrap.style.top = "0px";
-                        if (wrap)
-                            wrap.style.top = "0px";
-                    }
-                }
-            });
-            gradioApp().querySelector("#image_buttons_" + tabname + " .form").appendChild(maskbtn);
-        }
     });
+}
+
+// attach mask button at the bottom of gallery
+function attach_mask_button() {
+    if (!opts.mudd_use_gallery_detection_preview)
+        return;
+    var gallery = get_current_gallery();
+    var tabname = gallery?.id.replace("_gallery", "");
+    if (!tabname)
+        return;
+
+    var buttons = gradioApp().querySelectorAll("#image_buttons_" + tabname + " .form button");
+    if (buttons.length > 0 && buttons[buttons.length - 1].id != "") {
+        var maskbtn = document.createElement("button");
+        maskbtn.className = buttons[buttons.length - 1].classList;
+        maskbtn.title = "Hide/Show masks";
+        maskbtn.innerHTML="\u{1f3ad}";
+        maskbtn.addEventListener('click', (e) => {
+            if (!opts.mudd_use_gallery_detection_preview)
+                return;
+
+            let masks_a = gradioApp().querySelector("#mudd_masks_a_gallery_" + tabname + " textarea");
+            let masks_b = gradioApp().querySelector("#mudd_masks_b_gallery_" + tabname + " textarea");
+
+            // check masks_a, masks_b are available
+            if (masks_a.value == "" && masks_b.value == "") {
+                let id = selected_gallery_index();
+                let src = gradioApp().querySelector("#generation_info_" + tabname + " textarea").value;
+                if (src) {
+                    let infotexts = JSON.parse(src).infotexts;
+                    if (infotexts[id]) {
+                        parse_generation_info(tabname, infotexts[id]);
+                    }
+                }
+            }
+
+            var lightbox = gradioApp().getElementById("lightboxModal");
+            var lightbox_wrap = lightbox.querySelector(".mudd_masks_wrapper");
+            var gallery_id = tabname + "_gallery";
+            var wrap = gradioApp().querySelectorAll("#" + gallery_id + " .mudd_masks_wrapper")[0];
+
+            // toggle mask visibility
+            if (lightbox_wrap) {
+                if (lightbox_wrap?.style.top == "0px") {
+                    lightbox_wrap.style.top = "-2000px";
+                    if (wrap)
+                        wrap.style.top = "-2000px";
+                } else if (lightbox_wrap) {
+                    lightbox_wrap.style.top = "0px";
+                    if (wrap)
+                        wrap.style.top = "0px";
+                }
+            }
+        });
+        gradioApp().querySelector("#image_buttons_" + tabname + " .form").appendChild(maskbtn);
+    }
 }
 
 function get_current_gallery() {
@@ -577,4 +587,10 @@ onAfterUiUpdate(() => {
     if (opts.mudd_use_gallery_detection_preview)
         onGalleryUpdate();
 });
+
+onUiLoaded(()=>{
+    // attach mask toggle button
+    attach_mask_button();
+});
+
 })();
