@@ -50,18 +50,31 @@ function get_gallery_id(tabname) {
 function overlay_masks() {
     var res = Array.from(arguments);
 
-    var label = res[3];
-    var is_img2img = res[4];
+    var label, is_img2img, selected, sync;
+    var gallery_mode = false;
 
-    var selects = res[0];
-    var selected = res[1];
-    var options = res[2];
-    var sync = false;
-    if (typeof options == "boolean") {
-        sync = options;
+    if (res.length == 3) {
+        gallery_mode = true;
+        label = res[1];
+        is_img2img = res[2];
+        selects = res[0];
+        selected = '';
+        sync = true;
     } else {
-        if (options.indexOf("sync") != -1) {
-            sync = true;
+        label = res[3];
+        is_img2img = res[4];
+
+        selects = res[0];
+        selected = res[1];
+        var options = res[2];
+
+        sync = false;
+        if (typeof options == "boolean") {
+            sync = options;
+        } else {
+            if (options.indexOf("sync") != -1) {
+                sync = true;
+            }
         }
     }
 
@@ -117,12 +130,16 @@ function overlay_masks() {
     sels = sels.map((v) => v - 1);
 
     var tabname = is_img2img ? "img2img":"txt2img";
-    var gallery_id = get_gallery_id(tabname);
-    var gallery = gradioApp().querySelector("#" + gallery_id + ' .image-container');
-    var imgs = gallery.querySelectorAll("img")
-    if (imgs.length == 0) {
-        gallery_id = tabname + "_gallery";
+    var gallery_id = tabname + "_gallery";
+    if (!gallery_mode) {
+        gallery_id = get_gallery_id(tabname);
+        var gallery = gradioApp().querySelector("#" + gallery_id + ' .image-container');
+        var imgs = gallery.querySelectorAll("img")
+        if (imgs.length == 0) {
+            gallery_id = tabname + "_gallery";
+        }
     }
+
     var masks_id = "#mudd_masks_" + label.toLowerCase() + "_" + tabname;
     if (gallery_id.indexOf("_gallery") != -1) {
         // inpainting helper has no image
@@ -166,7 +183,7 @@ function overlay_masks() {
         }
     }
 
-    var canvas = make_mask(masks, sels, is_img2img);
+    var canvas = make_mask(masks, sels, is_img2img, gallery_mode);
     if (canvas) {
         console.log("canvas created");
     }
@@ -213,25 +230,24 @@ function reset_masks() {
         console.log("XXX mask reset gallery")
         // check for gallery
         gallery = gradioApp().querySelector('#' + gallery_id);
-        wrap = gradioApp().querySelectorAll("#" + gallery_id + " .mudd_masks_wrapper")[0];
-        if (wrap) {
-            gallery.removeChild(wrap);
-        }
+        imgs = gallery.querySelectorAll(".preview > img");
+        if (imgs.length == 0) {
+            wrap = gradioApp().querySelectorAll("#" + gallery_id + " .mudd_masks_wrapper")[0];
+            if (wrap) {
+                gallery.removeChild(wrap);
+            }
 
-        // check for modal
-        var lightbox = gradioApp().getElementById("lightboxModal");
-        var lightbox_wrap = lightbox.querySelector(".mudd_masks_wrapper");
-        if (lightbox_wrap) {
-            lightbox.removeChild(lightbox_wrap);
+            // check for modal
+            var lightbox = gradioApp().getElementById("lightboxModal");
+            var lightbox_wrap = lightbox.querySelector(".mudd_masks_wrapper");
+            if (lightbox_wrap) {
+                lightbox.removeChild(lightbox_wrap);
+            }
         }
     }
 
     // gradio bug XXX
-    if (gallery_id.indexOf("_gallery") != -1) {
-        res[0] = res[0] || gradioApp().querySelector("#mudd_masks_" + res[1].toLowerCase() + "_gallery_" + tabname + " textarea").value;
-    } else {
-        res[0] = res[0] || gradioApp().querySelector("#mudd_masks_" + res[1].toLowerCase() + "_" + tabname + " textarea").value;
-    }
+    res[0] = res[0] || gradioApp().querySelector("#mudd_masks_" + res[1].toLowerCase() + "_" + tabname + " textarea").value;
 
     return res;
 }
@@ -249,7 +265,7 @@ function gallery_get_masks() {
     return res;
 }
 
-function make_mask(masks, selected, is_img2img) {
+function make_mask(masks, selected, is_img2img, is_gallery) {
     var segms = masks?.segms;
     var bboxes = masks?.bboxes;
     var labels = masks?.labels;
@@ -257,11 +273,14 @@ function make_mask(masks, selected, is_img2img) {
 
     var tabname = is_img2img ? "img2img" : "txt2img";
 
-    var gallery_id = get_gallery_id(tabname);
-    var gallery = gradioApp().querySelector("#" + gallery_id + ' .image-container');
-    var imgs = gallery.querySelectorAll("img")
-    if (imgs.length == 0) {
-        gallery_id = tabname + "_gallery";
+    var gallery_id = tabname + "_gallery";
+    var gallery;
+    var imgs;
+    if (!is_gallery) {
+        gallery_id = get_gallery_id(tabname);
+        gallery = gradioApp().querySelector("#" + gallery_id + ' .image-container');
+        imgs = gallery.querySelectorAll("img")
+    } else {
         gallery = gradioApp().querySelector('#' + gallery_id);
         imgs = gallery.querySelectorAll(".preview > img");
     }
@@ -443,6 +462,9 @@ function parse_generation_info(tabname, infotext) {
 
 function attachGalleryButtonListener(tabname) {
     gradioApp().getElementById(tabname + "_generation_info_button")?.addEventListener('click', (e) => {
+        if (!opts.mudd_use_gallery_detection_preview)
+            return;
+
         let id = selected_gallery_index();
         let src = gradioApp().querySelector("#generation_info_" + tabname + " textarea").value;
         if (id >= 0 && src) {
@@ -460,6 +482,9 @@ function attachGalleryButtonListener(tabname) {
             maskbtn.title = "Hide/Show masks";
             maskbtn.innerHTML="\u{1f3ad}";
             maskbtn.addEventListener('click', (e) => {
+                if (!opts.mudd_use_gallery_detection_preview)
+                    return;
+
                 let masks_a = gradioApp().querySelector("#mudd_masks_a_gallery_" + tabname + " textarea");
                 let masks_b = gradioApp().querySelector("#mudd_masks_b_gallery_" + tabname + " textarea");
 
@@ -509,6 +534,9 @@ function get_current_gallery() {
 }
 
 function onGalleryUpdate() {
+    if (!opts.mudd_use_gallery_detection_preview)
+        return;
+
     if (Object.keys(generation_buttons).length < 2) {
         let button = gradioApp().getElementById('txt2img' + "_generation_info_button");
         if (button)
@@ -530,7 +558,7 @@ function onGalleryUpdate() {
     var id = selected_gallery_index();
     if (id == -1) {
         var lightbox = gradioApp().getElementById("lightboxModal");
-        var lightbox_wrap = lightbox.querySelector(".mudd_masks_wrapper");
+        var lightbox_wrap = lightbox?.querySelector(".mudd_masks_wrapper");
         // toggle mask visibility
         if (lightbox_wrap) {
             lightbox_wrap.style.top = "-2000px";
@@ -546,6 +574,7 @@ function onGalleryUpdate() {
 }
 
 onAfterUiUpdate(() => {
-    onGalleryUpdate();
+    if (opts.mudd_use_gallery_detection_preview)
+        onGalleryUpdate();
 });
 })();
